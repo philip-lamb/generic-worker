@@ -73,8 +73,8 @@ tasks:
         TASKCLUSTER_ROOT_URL: https://taskcluster.net
       command:
         - set CGO_ENABLED=0
-        - set GOPATH=%CD%\gopath1.10.3
-        - set GOROOT=%CD%\go1.10.3\go
+        - set GOPATH=%CD%\gopath1.11.5
+        - set GOROOT=%CD%\go1.11.5\go
         - set PATH=%CD%\git\cmd;%GOPATH%\bin;%GOROOT%\bin;%PATH%
         - git config --global core.autocrlf false
         - go version
@@ -114,16 +114,16 @@ tasks:
         - ineffassign .
       artifacts:
         - name: public/build/generic-worker-windows-amd64.exe
-          path: gopath1.10.3\bin\generic-worker.exe
+          path: gopath1.11.5\bin\generic-worker.exe
           expires: "{{ '2 weeks' | $fromNow }}"
           type: file
       mounts:
         - cacheName: generic-worker-checkout
-          directory: gopath1.10.3\src
+          directory: gopath1.11.5\src
         - content:
             url: https://storage.googleapis.com/golang/go1.11.5.windows-amd64.zip
             sha256: 1c734fe614fa052f44694e993f2d06f24a56b6703ee46fdfb2b9bf277819fe40
-          directory: go1.10.3
+          directory: go1.11.5
           format: zip
         - content:
             url: https://github.com/git-for-windows/git/releases/download/v2.14.1.windows.1/MinGit-2.14.1-64-bit.zip
@@ -158,8 +158,8 @@ tasks:
         TASKCLUSTER_ROOT_URL: https://taskcluster.net
       command:
         - set CGO_ENABLED=0
-        - set GOPATH=%CD%\gopath1.10.3
-        - set GOROOT=%CD%\go1.10.3\go
+        - set GOPATH=%CD%\gopath1.11.5
+        - set GOROOT=%CD%\go1.11.5\go
         - set PATH=%CD%\git\bin;%GOPATH%\bin;%GOROOT%\bin;%PATH%
         - git config --global core.autocrlf false
         - go version
@@ -188,16 +188,16 @@ tasks:
         - ineffassign .
       artifacts:
         - name: public/build/generic-worker-windows-386.exe
-          path: gopath1.10.3\bin\generic-worker.exe
+          path: gopath1.11.5\bin\generic-worker.exe
           expires: "{{ '2 weeks' | $fromNow }}"
           type: file
       mounts:
         - cacheName: generic-worker-checkout
-          directory: gopath1.10.3\src
+          directory: gopath1.11.5\src
         - content:
             url: https://storage.googleapis.com/golang/go1.11.5.windows-386.zip
             sha256: b569f7a45056ab810364d7ac9ee6357e9a098fc3e4c75e016948736fa93ee229
-          directory: go1.10.3
+          directory: go1.11.5
           format: zip
         - content:
             url: https://github.com/git-for-windows/git/releases/download/v2.11.0.windows.3/Git-2.11.0.3-32-bit.tar.bz2
@@ -232,8 +232,8 @@ tasks:
         TASKCLUSTER_ROOT_URL: https://taskcluster.net
       command:
         - set CGO_ENABLED=0
-        - set GOPATH=%CD%\gopath1.10.3
-        - set GOROOT=%CD%\go1.10.3\go
+        - set GOPATH=%CD%\gopath1.11.5
+        - set GOROOT=%CD%\go1.11.5\go
         - set PATH=%CD%\git\cmd;%GOPATH%\bin;%GOROOT%\bin;%PATH%
         - git config --global core.autocrlf false
         - go version
@@ -273,16 +273,16 @@ tasks:
         - ineffassign .
       artifacts:
         - name: public/build/generic-worker-windows-amd64.exe
-          path: gopath1.10.3\bin\generic-worker.exe
+          path: gopath1.11.5\bin\generic-worker.exe
           expires: "{{ '2 weeks' | $fromNow }}"
           type: file
       mounts:
         - cacheName: generic-worker-checkout
-          directory: gopath1.10.3\src
+          directory: gopath1.11.5\src
         - content:
             url: https://storage.googleapis.com/golang/go1.11.5.windows-amd64.zip
             sha256: 1c734fe614fa052f44694e993f2d06f24a56b6703ee46fdfb2b9bf277819fe40
-          directory: go1.10.3
+          directory: go1.11.5
           format: zip
         - content:
             url: https://github.com/git-for-windows/git/releases/download/v2.14.1.windows.1/MinGit-2.14.1-64-bit.zip
@@ -320,8 +320,8 @@ tasks:
           - -vxec
           - |
             export CGO_ENABLED=0
-            export GOROOT="$(pwd)/go1.10.3/go"
-            export GOPATH="$(pwd)/gopath1.10.3"
+            export GOROOT="$(pwd)/go1.11.5/go"
+            export GOPATH="$(pwd)/gopath1.11.5"
             export PATH="${GOPATH}/bin:${GOROOT}/bin:${PATH}"
             go version
             go env
@@ -347,16 +347,16 @@ tasks:
             ineffassign .
       artifacts:
         - name: public/build/generic-worker-darwin-amd64
-          path: gopath1.10.3/bin/generic-worker
+          path: gopath1.11.5/bin/generic-worker
           expires: "{{ '2 weeks' | $fromNow }}"
           type: file
       mounts:
         - cacheName: generic-worker-checkout
-          directory: gopath1.10.3/src
+          directory: gopath1.11.5/src
         - content:
             url: https://storage.googleapis.com/golang/go1.11.5.darwin-amd64.tar.gz
             sha256: b970d8fdd5245193073395ce7b7775dd9deea980d4ce5e68b3b80ee9edcf2afc
-          directory: go1.10.3
+          directory: go1.11.5
           format: tar.gz
 
 
@@ -392,8 +392,8 @@ tasks:
   #         - -vxec
   #         - |
   #           export CGO_ENABLED=0
-  #           export GOROOT="$(pwd)/go1.10.3/go"
-  #           export GOPATH="$(pwd)/gopath1.10.3"
+  #           export GOROOT="$(pwd)/go1.11.5/go"
+  #           export GOPATH="$(pwd)/gopath1.11.5"
   #           export PATH="${GOPATH}/bin:${GOROOT}/bin:${PATH}"
   #           export CGO_ENABLED=0
   #           go version
@@ -419,16 +419,16 @@ tasks:
   #           ineffassign .
   #     artifacts:
   #       - name: public/build/generic-worker-linux-armv6l
-  #         path: gopath1.10.3/bin/generic-worker
+  #         path: gopath1.11.5/bin/generic-worker
   #         expires: "{{ '2 weeks' | $fromNow }}"
   #         type: file
   #     mounts:
   #       - cacheName: generic-worker-checkout
-  #         directory: gopath1.10.3/src
+  #         directory: gopath1.11.5/src
   #       - content:
   #           url: https://storage.googleapis.com/golang/go1.11.5.linux-armv6l.tar.gz
   #           sha256: b26b53c94923f78955236386fee0725ef4e76b6cb47e0df0ed0c0c4724e7b198
-  #         directory: go1.10.3
+  #         directory: go1.11.5
   #         format: tar.gz
 
 
