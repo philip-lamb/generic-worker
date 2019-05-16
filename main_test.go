@@ -10,9 +10,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/taskcluster/httpbackoff"
-	"github.com/taskcluster/slugid-go/slugid"
 )
 
 // Test failure should resolve as "failed"
@@ -25,70 +22,6 @@ func TestFailureResolvesAsFailure(t *testing.T) {
 	td := testTask(t)
 
 	_ = submitAndAssert(t, td, payload, "failed", "failed")
-}
-
-func TestAbortAfterMaxRunTime(t *testing.T) {
-	defer setup(t)()
-
-	// include a writable directory cache where our process writes to, to make
-	// sure we are still able unmount cache when we abort process prematurely
-	// that is writing to the cache
-	mounts := []MountEntry{
-		// requires scope "generic-worker:cache:banana-cache"
-		&WritableDirectoryCache{
-			CacheName: "banana-cache",
-			Directory: filepath.Join("bananas"),
-		},
-	}
-
-	payload := GenericWorkerPayload{
-		Mounts: toMountArray(t, &mounts),
-		Command: append(
-			logOncePerSecond(27, filepath.Join("bananas", "banana.log")),
-			// also make sure subsequent commands after abort don't run
-			helloGoodbye()...,
-		),
-		MaxRunTime: 5,
-	}
-	td := testTask(t)
-	td.Scopes = []string{"generic-worker:cache:banana-cache"}
-
-	taskID := scheduleTask(t, td, payload)
-	startTime := time.Now()
-	ensureResolution(t, taskID, "failed", "failed")
-	endTime := time.Now()
-	// check uploaded log mentions abortion
-	// note: we do this rather than local log, to check also log got uploaded
-	// as failure path requires that task is resolved before logs are uploaded
-	url, err := testQueue.GetLatestArtifact_SignedURL(taskID, "public/logs/live_backing.log", 10*time.Minute)
-	if err != nil {
-		t.Fatalf("Cannot retrieve url for live_backing.log: %v", err)
-	}
-	resp, _, err := httpbackoff.Get(url.String())
-	if err != nil {
-		t.Fatalf("Could not download log: %v", err)
-	}
-	defer resp.Body.Close()
-	bytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("Error when trying to read log file over http: %v", err)
-	}
-	logtext := string(bytes)
-	if !strings.Contains(logtext, "max run time exceeded") {
-		t.Log("Was expecting log file to mention task abortion, but it doesn't:")
-		t.Fatal(logtext)
-	}
-	if strings.Contains(logtext, "hello") {
-		t.Log("Task should have been aborted before 'hello' was logged, but log contains 'hello':")
-		t.Fatal(logtext)
-	}
-	duration := endTime.Sub(startTime).Seconds()
-	if duration < 5 {
-		t.Fatalf("Task %v should have taken at least 5 seconds, but took %v seconds", taskID, duration)
-	}
-	if duration > 20 {
-		t.Fatalf("Task %v should have taken no more than 20 seconds, but took %v seconds", taskID, duration)
-	}
 }
 
 func TestIdleWithoutCrash(t *testing.T) {
@@ -203,22 +136,6 @@ func TestExecutionErrorsText(t *testing.T) {
 	}
 }
 
-// If a task tries to execute a command that doesn't exist, it should result in
-// a task failure, rather than a task exception, since the task is at fault,
-// not the worker.
-//
-// See https://bugzil.la/1479415
-func TestNonExistentCommandFailsTask(t *testing.T) {
-	defer setup(t)()
-	payload := GenericWorkerPayload{
-		Command:    singleCommandNoArgs(slugid.Nice()),
-		MaxRunTime: 10,
-	}
-	td := testTask(t)
-
-	_ = submitAndAssert(t, td, payload, "failed", "failed")
-}
-
 // If a task tries to execute a file that isn't executable for the current
 // user, it should result in a task failure, rather than a task exception,
 // since the task is at fault, not the worker.
@@ -226,8 +143,8 @@ func TestNonExistentCommandFailsTask(t *testing.T) {
 // See https://bugzil.la/1479415
 func TestNonExecutableBinaryFailsTask(t *testing.T) {
 	defer setup(t)()
-	commands := copyTestdataFile("public-openpgp-key")
-	commands = append(commands, singleCommandNoArgs(filepath.Join(taskContext.TaskDir, "public-openpgp-key"))...)
+	commands := copyTestdataFile("ed25519_public_key")
+	commands = append(commands, singleCommandNoArgs(filepath.Join(taskContext.TaskDir, "ed25519_public_key"))...)
 	payload := GenericWorkerPayload{
 		Command:    commands,
 		MaxRunTime: 10,
@@ -253,10 +170,11 @@ func TestRemoveTaskDirs(t *testing.T) {
 		}
 	}()
 	for _, dir := range []string{
-		"task_12345",     // should be deleted
-		"task_task_test", // should be deleted
-		"testt_12345",    // should remain
-		"bfdnbdfd",       // should remain
+		"task_1234561234", // should remain
+		"task_12345",      // should be deleted
+		"task_task_test",  // should be deleted
+		"test_12345",      // should remain
+		"bfdnbdfd",        // should remain
 	} {
 		err = os.MkdirAll(filepath.Join(d, dir), 0777)
 		if err != nil {
@@ -264,18 +182,19 @@ func TestRemoveTaskDirs(t *testing.T) {
 		}
 	}
 	for _, file := range []string{
-		"task_23456",                         // should remain
-		"task_best_vest",                     // should remain
-		"testt_65536",                        // should remain
-		"applesnpears",                       // should remain
-		filepath.Join("task_12345", "abcde"), // should be deleted
+		filepath.Join("task_1234561234", "xyz"), // should remain
+		"task_23456",                            // should remain
+		"task_best_vest",                        // should remain
+		"testt_65536",                           // should remain
+		"applesnpears",                          // should remain
+		filepath.Join("task_12345", "abcde"),    // should be deleted
 	} {
 		err = ioutil.WriteFile(filepath.Join(d, file), []byte("hello world"), 0777)
 		if err != nil {
 			t.Fatalf("Could not write %v file: %v", file, err)
 		}
 	}
-	err = removeTaskDirs(d)
+	err = deleteTaskDirs(d, "task_1234561234")
 	if err != nil {
 		t.Fatalf("Could not remove task directories: %v", err)
 	}
@@ -294,8 +213,9 @@ func TestRemoveTaskDirs(t *testing.T) {
 		t.Fatalf("Error reading directory listing of %v: %v", d, err)
 	}
 	expectedDirs := map[string]bool{
-		"testt_12345": true,
-		"bfdnbdfd":    true,
+		"task_1234561234": true,
+		"test_12345":      true,
+		"bfdnbdfd":        true,
 	}
 	expectedFiles := map[string]bool{
 		"task_23456":     true,
@@ -304,9 +224,16 @@ func TestRemoveTaskDirs(t *testing.T) {
 		"applesnpears":   true,
 	}
 	if len(fi) != len(expectedDirs)+len(expectedFiles) {
+		t.Logf("Found:")
 		for _, file := range fi {
-			t.Logf("File %v", file.Name())
+			if file.IsDir() {
+				t.Logf("  Directory %v", file.Name())
+			} else {
+				t.Logf("  File %v", file.Name())
+			}
 		}
+		t.Logf("Expected files: %v", expectedFiles)
+		t.Logf("Expected directories: %v", expectedDirs)
 		t.Fatalf("Expected to find %v directory records (%v dirs + %v files) but found %v", len(expectedDirs)+len(expectedFiles), len(expectedDirs), len(expectedFiles), len(fi))
 	}
 	for _, file := range fi {
@@ -319,5 +246,12 @@ func TestRemoveTaskDirs(t *testing.T) {
 				t.Fatalf("Didn't expect to find file %v but found it under temp dir %v", file.Name(), d)
 			}
 		}
+	}
+}
+
+func TestUsage(t *testing.T) {
+	usage := usage("generic-worker")
+	if !strings.Contains(usage, "Exit Codes:") {
+		t.Fatal("Was expecting the usage text to include information about exit codes")
 	}
 }

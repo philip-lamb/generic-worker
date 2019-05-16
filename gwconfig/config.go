@@ -14,16 +14,20 @@ import (
 	"github.com/taskcluster/taskcluster-client-go/tcawsprovisioner"
 	"github.com/taskcluster/taskcluster-client-go/tcpurgecache"
 	"github.com/taskcluster/taskcluster-client-go/tcqueue"
+	"github.com/taskcluster/taskcluster-client-go/tcsecrets"
 )
 
 type (
 	// Generic Worker config
 	Config struct {
-		AccessToken                    string                 `json:"accessToken"`
+		PrivateConfig
+		PublicConfig
+	}
+
+	PublicConfig struct {
 		AuthBaseURL                    string                 `json:"authBaseURL"`
 		AvailabilityZone               string                 `json:"availabilityZone"`
 		CachesDir                      string                 `json:"cachesDir"`
-		Certificate                    string                 `json:"certificate"`
 		CheckForNewDeploymentEverySecs uint                   `json:"checkForNewDeploymentEverySecs"`
 		CleanUpTaskDirs                bool                   `json:"cleanUpTaskDirs"`
 		ClientID                       string                 `json:"clientId"`
@@ -39,9 +43,7 @@ type (
 		LiveLogGETPort                 uint16                 `json:"livelogGETPort"`
 		LiveLogKey                     string                 `json:"livelogKey"`
 		LiveLogPUTPort                 uint16                 `json:"livelogPUTPort"`
-		LiveLogSecret                  string                 `json:"livelogSecret"`
 		NumberOfTasksToRun             uint                   `json:"numberOfTasksToRun"`
-		OpenPGPSigningKeyLocation      string                 `json:"openpgpSigningKeyLocation"`
 		PrivateIP                      net.IP                 `json:"privateIP"`
 		ProvisionerBaseURL             string                 `json:"provisionerBaseURL"`
 		ProvisionerID                  string                 `json:"provisionerId"`
@@ -53,6 +55,7 @@ type (
 		RootURL                        string                 `json:"rootURL"`
 		RunAfterUserCreation           string                 `json:"runAfterUserCreation"`
 		RunTasksAsCurrentUser          bool                   `json:"runTasksAsCurrentUser"`
+		SecretsBaseURL                 string                 `json:"secretsBaseURL"`
 		SentryProject                  string                 `json:"sentryProject"`
 		ShutdownMachineOnIdle          bool                   `json:"shutdownMachineOnIdle"`
 		ShutdownMachineOnInternalError bool                   `json:"shutdownMachineOnInternalError"`
@@ -64,6 +67,14 @@ type (
 		WorkerID                       string                 `json:"workerId"`
 		WorkerType                     string                 `json:"workerType"`
 		WorkerTypeMetadata             map[string]interface{} `json:"workerTypeMetadata"`
+		WSTAudience                    string                 `json:"wstAudience"`
+		WSTServerURL                   string                 `json:"wstServerURL"`
+	}
+
+	PrivateConfig struct {
+		AccessToken   string `json:"accessToken"`
+		Certificate   string `json:"certificate"`
+		LiveLogSecret string `json:"livelogSecret"`
 	}
 
 	MissingConfigError struct {
@@ -71,7 +82,7 @@ type (
 	}
 )
 
-// writes config to json file
+// Persist writes config to json file
 func (c *Config) Persist(file string) error {
 	log.Print("Creating file " + file + "...")
 	return fileutil.WriteToFileAsJSON(c, file)
@@ -89,8 +100,7 @@ func (c *Config) String() string {
 }
 
 func (c *Config) Validate() error {
-	// TODO: could probably do this with reflection to avoid explicitly listing
-	// all members
+	// TODO: we should be using json schema here
 
 	fields := []struct {
 		value      interface{}
@@ -105,8 +115,6 @@ func (c *Config) Validate() error {
 		{value: c.LiveLogExecutable, name: "livelogExecutable", disallowed: ""},
 		{value: c.LiveLogPUTPort, name: "livelogPUTPort", disallowed: 0},
 		{value: c.LiveLogGETPort, name: "livelogGETPort", disallowed: 0},
-		{value: c.LiveLogSecret, name: "livelogSecret", disallowed: ""},
-		{value: c.OpenPGPSigningKeyLocation, name: "openpgpSigningKeyLocation", disallowed: ""},
 		{value: c.ProvisionerID, name: "provisionerId", disallowed: ""},
 		{value: c.PublicIP, name: "publicIP", disallowed: net.IP(nil)},
 		{value: c.RootURL, name: "rootURL", disallowed: ""},
@@ -178,4 +186,13 @@ func (c *Config) PurgeCache() *tcpurgecache.PurgeCache {
 		purgeCache.BaseURL = c.PurgeCacheBaseURL
 	}
 	return purgeCache
+}
+
+func (c *Config) Secrets() *tcsecrets.Secrets {
+	secrets := tcsecrets.New(c.Credentials(), c.RootURL)
+	// If secretsBaseURL provided, it should take precedence over rootURL
+	if c.SecretsBaseURL != "" {
+		secrets.BaseURL = c.SecretsBaseURL
+	}
+	return secrets
 }

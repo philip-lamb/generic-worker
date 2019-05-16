@@ -9,9 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/taskcluster/generic-worker/process"
 	"github.com/taskcluster/shell"
@@ -30,17 +28,6 @@ func (task *TaskRun) NewPlatformData() (pd *PlatformData, err error) {
 
 func (pd *PlatformData) ReleaseResources() error {
 	return nil
-}
-
-type OSUser struct {
-	HomeDir  string
-	Name     string
-	Password string
-}
-
-type TaskContext struct {
-	TaskDir string
-	User    *OSUser
 }
 
 func immediateShutdown(cause string) {
@@ -94,10 +81,13 @@ func (task *TaskRun) generateCommand(index int) error {
 }
 
 func purgeOldTasks() error {
-	if config.CleanUpTaskDirs {
-		deleteTaskDirs()
+	if !config.CleanUpTaskDirs {
+		log.Printf("WARNING: Not purging previous task directories/users since config setting cleanUpTaskDirs is false")
+		return nil
 	}
-	return nil
+	// Use filepath.Base(taskContext.TaskDir) rather than taskContext.User.Name
+	// since taskContext.User is nil if running tasks as current user.
+	return deleteTaskDirs(config.TasksDir, filepath.Base(taskContext.TaskDir))
 }
 
 func install(arguments map[string]interface{}) (err error) {
@@ -108,7 +98,7 @@ func install(arguments map[string]interface{}) (err error) {
 // NewTaskFeature method to set variables for the task.
 func (task *TaskRun) setVariable(variable string, value string) error {
 	for i := range task.Commands {
-		task.Commands[i].Cmd.Env = append(task.Commands[i].Cmd.Env, fmt.Sprintf("%s=%s", variable, value))
+		task.Commands[i].SetEnv(variable, value)
 	}
 	return nil
 }
@@ -151,9 +141,7 @@ func makeDirUnreadableForTaskUser(task *TaskRun, dir string) error {
 
 func RenameCrossDevice(oldpath, newpath string) error {
 	// TODO: here we should be able to rename when oldpath and newpath are on
-	// different partitions - for now this will cover 99% of cases, and we
-	// currently don't have non-windows platforms in production, so not
-	// currently high priority
+	// different partitions - for now this will cover 99% of cases.
 	return os.Rename(oldpath, newpath)
 }
 
@@ -161,19 +149,19 @@ func (task *TaskRun) formatCommand(index int) string {
 	return shell.Escape(task.Payload.Command[index]...)
 }
 
-func prepareTaskUser(username string) bool {
-	taskContext.User = &OSUser{
-		Name: username,
+func PlatformTaskEnvironmentSetup(taskDirName string) (reboot bool) {
+	taskContext = &TaskContext{
+		TaskDir: filepath.Join(config.TasksDir, taskDirName),
 	}
 	err := os.MkdirAll(taskContext.TaskDir, 0777)
 	if err != nil {
 		panic(err)
 	}
-	return false
+	return
 }
 
-func deleteTaskDir(path string) error {
-	log.Print("Removing task directory '" + path + "'...")
+func deleteDir(path string) error {
+	log.Print("Removing directory '" + path + "'...")
 	err := os.RemoveAll(path)
 	if err != nil {
 		log.Print("WARNING: could not delete directory '" + path + "'")
@@ -189,22 +177,10 @@ func defaultTasksDir() string {
 	return filepath.Dir(os.Getenv("HOME"))
 }
 
-// N/A for unix - just a windows thing
-func AutoLogonCredentials() (string, string) {
-	return "", ""
-}
-
-func chooseTaskDirName() string {
-	return "task_" + strconv.Itoa(int(time.Now().Unix()))
-}
-
-func unsetAutoLogon() {
-}
-
-func deleteTaskDirs() {
-	removeTaskDirs(config.TasksDir)
-}
-
 func GrantSIDFullControlOfInteractiveWindowsStationAndDesktop(sid string) (err error) {
 	return fmt.Errorf("Cannot grant %v full control of interactive windows station and desktop; platform %v does not have such entities", sid, runtime.GOOS)
+}
+
+func rebootBetweenTasks() bool {
+	return false
 }

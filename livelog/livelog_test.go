@@ -18,15 +18,13 @@ func TestLiveLog(t *testing.T) {
 	default:
 		executable = "livelog"
 	}
-	ll, err := New(executable, "", "", 34567, 34568)
+	ll, err := New(executable, 34567, 34568)
 	// Do defer before checking err since err could be a different error and
 	// process may have already started up.
 	//
 	// TODO: Think about if there is a better way to handle this, e.g. with a
 	// callback function or the method itself killing the process if there is
-	// an error after process is started up, etc. Maybe not worth the work as
-	// this will be refactored later to not use livelog in a separate process,
-	// but in a different go routine.
+	// an error after process is started up, etc.
 	defer func() {
 		err := ll.Terminate()
 		if err != nil {
