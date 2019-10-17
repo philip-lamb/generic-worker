@@ -14,7 +14,7 @@ tasks:
   ######### Windows Server 2012 R2 Multiuser Build #########
   ##########################################################
 
-  - provisionerId: pmoore-test
+  - provisionerId: proj-taskcluster
     workerType: win2012r2-cu
     metadata:
       name: "Build/test 64 bit generic-worker (multiuser engine) on Windows Server 2012 R2"
